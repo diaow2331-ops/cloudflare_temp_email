@@ -5,7 +5,7 @@ import { useScopedI18n } from '@/i18n/app'
 import { useGlobalState } from '../store'
 import { CloudDownloadRound, ArrowBackIosNewFilled, ArrowForwardIosFilled, InboxRound } from '@vicons/material'
 import { useIsMobile } from '../utils/composables'
-import { processItem } from '../utils/email-parser'
+import { processItem, revokeAllMailBlobUrls } from '../utils/email-parser'
 import { utcToLocalDate } from '../utils';
 import { buildReplyModel, buildForwardModel } from '../utils/mail-actions'
 import MailContentRenderer from "./MailContentRenderer.vue";
@@ -170,6 +170,8 @@ watch([page, pageSize], async ([page, pageSize], [oldPage, oldPageSize]) => {
 })
 
 const refresh = async () => {
+  // 先回收上一轮附件的 blob URL，防止 60 秒轮询长期堆积
+  revokeAllMailBlobUrls();
   try {
     const { results, count: totalCount } = await props.fetchMailData(
       pageSize.value, (page.value - 1) * pageSize.value
@@ -323,6 +325,7 @@ onMounted(async () => {
 
 onBeforeUnmount(() => {
   clearInterval(timer.value)
+  revokeAllMailBlobUrls()
 })
 </script>
 

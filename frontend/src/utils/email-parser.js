@@ -1,8 +1,32 @@
 import PostalMime from 'postal-mime';
+import DOMPurify from 'dompurify';
 
 function humanFileSize(size) {
     const i = size === 0 ? 0 : Math.floor(Math.log(size) / Math.log(1024));
     return parseFloat((size / Math.pow(1024, i)).toFixed(2)) + ' ' + ['B', 'KB', 'MB', 'GB', 'TB'][i];
+}
+
+// 邮件 HTML 来自任意发件人，渲染前必须消毒（防存储型 XSS）。
+// 注意：必须在 cid: 占位符替换为 blob URL 之前执行，避免消毒器误伤我们自己生成的 blob: 链接。
+function sanitizeMailHtml(html) {
+    if (!html) return html;
+    return DOMPurify.sanitize(html);
+}
+
+// 跟踪 processItem 为附件创建的 blob URL，避免 60 秒自动轮询持续堆积导致内存泄漏
+const trackedBlobUrls = new Set();
+
+function trackBlobUrl(url) {
+    if (url) trackedBlobUrls.add(url);
+    return url;
+}
+
+// 回收所有已跟踪的附件 blob URL（列表刷新/组件卸载时调用）
+export function revokeAllMailBlobUrls() {
+    for (const url of trackedBlobUrls) {
+        try { URL.revokeObjectURL(url); } catch (_) { /* ignore */ }
+    }
+    trackedBlobUrls.clear();
 }
 
 export async function processItem(item) {
@@ -13,14 +37,14 @@ export async function processItem(item) {
         const parsedEmail = parse_message(item.raw);
         item.source = parsedEmail.sender || item.source;
         item.subject = parsedEmail.subject || '';
-        item.message = parsedEmail.body_html || parsedEmail.text || '';
+        item.message = sanitizeMailHtml(parsedEmail.body_html || parsedEmail.text || '');
         item.text = parsedEmail.text || '';
         item.attachments = parsedEmail.attachments?.map((a_item) => {
             const blob = new Blob(
                 [a_item.content],
                 { type: a_item.content_type || 'application/octet-stream' }
             );
-            const blob_url = URL.createObjectURL(blob);
+            const blob_url = trackBlobUrl(URL.createObjectURL(blob));
             if (a_item.content_id && a_item.content_id.length > 0) {
                 item.message = item.message.replace(`cid:${a_item.content_id}`, blob_url);
             }
@@ -47,14 +71,14 @@ export async function processItem(item) {
             item.source = `${parsedEmail.from.name} <${parsedEmail.from.address}>`;
         }
         item.subject = parsedEmail.subject || 'No Subject';
-        item.message = parsedEmail.html || parsedEmail.text || item.raw;
+        item.message = sanitizeMailHtml(parsedEmail.html || parsedEmail.text || item.raw);
         item.text = parsedEmail.text || '';
         item.attachments = parsedEmail.attachments?.map((a_item) => {
             const blob = new Blob(
                 [a_item.content],
                 { type: a_item.mimeType || 'application/octet-stream' }
             );
-            const blob_url = URL.createObjectURL(blob)
+            const blob_url = trackBlobUrl(URL.createObjectURL(blob))
             if (a_item.contentId && a_item.contentId.length > 0) {
                 item.message = item.message.replace(`cid:${a_item.contentId}`, blob_url);
             }
@@ -70,7 +94,7 @@ export async function processItem(item) {
         console.log('Error parsing email with PostalMime');
         console.error(error);
         item.subject = 'No Subject';
-        item.message = item.raw;
+        item.message = sanitizeMailHtml(item.raw);
     }
     return item;
 }

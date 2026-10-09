@@ -144,10 +144,12 @@ onMounted(async () => {
 <style scoped>
 .side {
   height: 100vh;
+  height: 100dvh;
 }
 
 .main {
   height: 100vh;
+  height: 100dvh;
   text-align: center;
 }
 

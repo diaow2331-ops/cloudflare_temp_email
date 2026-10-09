@@ -1,0 +1,13 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="app_name">临时邮箱</string>
+    <string name="menu_settings">服务器设置</string>
+    <string name="menu_refresh">刷新</string>
+    <string name="menu_about">关于</string>
+    <string name="settings_title">服务器地址</string>
+    <string name="settings_hint">例如 https://mail.awsl.uk（部署自己的实例后可改成自己的域名）</string>
+    <string name="settings_ok">确定</string>
+    <string name="settings_cancel">取消</string>
+    <string name="settings_invalid">地址无效，请输入 http(s) 开头的完整地址</string>
+    <string name="about_text">临时邮箱 Android 客户端 v1.0.0\n\n基于 Cloudflare 临时邮箱服务（dreamhunter2333/cloudflare_temp_email）的 WebView 封装。\n\n默认连接官方演示服务；部署自己的实例后可在「服务器设置」中切换地址。</string>
+</resources>
